@@ -1,17 +1,16 @@
 import sqlite3
 
-# Creates the database and the table if they don't already exist
-
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 ALPHABET_HASH = {char: i for i, char in enumerate(ALPHABET)}
 BASE_NUM = len(ALPHABET)
 
+# Creates the database and the table if they don't already exist
 def createDb(db_path):
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
     except sqlite3.Error as e:
-        raise sqlite3.Error("Error connecting to database: ", e)
+        raise sqlite3.Error(f"Error connecting to database: {e}")
     try:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS url_mapping (
@@ -27,7 +26,7 @@ def createDb(db_path):
         return conn
     except sqlite3.Error as e:
         conn.close()
-        raise sqlite3.Error("Error creating the table in the database: ", e)
+        raise sqlite3.Error(f"Error creating the table in the database: {e}")
 
 # Encodes a number into a base62 string
 def toBase62(num):
@@ -62,7 +61,7 @@ def getShortUrl(conn, long_url):
         else:
             return None
     except sqlite3.Error as e:
-        raise sqlite3.Error("Error retrieving short URL: ", e)
+        raise sqlite3.Error(f"Error retrieving short URL: {e}")
 
 # The logic for inserting a new URL mapping into the database
 def insertUrlMapping(conn, long_url, base_url="myshort.url/"):
@@ -70,22 +69,22 @@ def insertUrlMapping(conn, long_url, base_url="myshort.url/"):
         cursor = conn.cursor()
         cursor.execute("INSERT INTO url_mapping (long_url) VALUES (?)", (long_url,))
 
-        id = cursor.lastrowid
+        row_id = cursor.lastrowid
 
-        short_url = base_url + toBase62(id)
+        short_url = base_url + toBase62(row_id)
 
-        cursor.execute("UPDATE url_mapping SET short_url = ? WHERE id = ?", (short_url, id))
+        cursor.execute("UPDATE url_mapping SET short_url = ? WHERE id = ?", (short_url, row_id))
 
         conn.commit()
         return short_url
     except sqlite3.Error as e:
-        raise sqlite3.Error("Error inserting URL mapping: ", e)
+        raise sqlite3.Error(f"Error inserting URL mapping: {e}")
 
 # The logic for retrieving the long URL from database based on the short URL
-def getLongUrl(conn, short_url):
+def getLongUrl(conn, short_url, base_url="myshort.url/"):
     try:
         cursor = conn.cursor()
-        ind = fromBase62(short_url)
+        ind = fromBase62(short_url.replace(base_url, ""))
 
         cursor.execute("SELECT long_url FROM url_mapping WHERE id = ?", (ind,))
 
@@ -96,7 +95,7 @@ def getLongUrl(conn, short_url):
         else:
             return None
     except sqlite3.Error as e:
-        raise sqlite3.Error("Error retrieving long URL: ", e)
+        raise sqlite3.Error(f"Error retrieving long URL: {e}")
     
 # If the short URL exists, returns its long URL. Otherwise, returns None.    
 def lengthen(conn, short_url):

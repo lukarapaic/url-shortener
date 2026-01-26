@@ -18,7 +18,7 @@ def main():
 
             try:
                 if sl.checkURL(url) == "short":
-                    result = sl.lengthen(conn,url)
+                    result = sl.lengthen(conn, url)
                     print ("Expanded URL:", result)
                 else:
                     result = sl.shorten(conn, url, BASE_URL)
