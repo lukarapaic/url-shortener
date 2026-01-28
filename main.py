@@ -17,12 +17,19 @@ def main():
                 break
 
             try:
-                if sl.checkURL(url) == "short":
+                url, type_of_url = sl.checkURL(url, BASE_URL)
+
+                if type_of_url == "short":
                     result = sl.lengthen(conn, url)
-                    print ("Expanded URL:", result)
+                    if result is None:
+                        print("URL not found in the database.")
+                    else:
+                        print("Expanded URL:", result)
+                        
                 else:
-                    result = sl.shorten(conn, url, BASE_URL)
-                    print ("Shortened URL:", result)
+                    result = sl.shorten(conn, url)
+                    print("Shortened URL:", BASE_URL + result)
+
             except ValueError as ve:
                 print("Invalid URL:", ve)
             except Exception as e:

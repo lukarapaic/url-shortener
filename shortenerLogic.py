@@ -1,4 +1,5 @@
 import sqlite3
+from urllib.parse import urlparse
 
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 ALPHABET_HASH = {char: i for i, char in enumerate(ALPHABET)}
@@ -64,14 +65,14 @@ def getShortUrl(conn, long_url):
         raise sqlite3.Error(f"Error retrieving short URL: {e}")
 
 # The logic for inserting a new URL mapping into the database
-def insertUrlMapping(conn, long_url, base_url="myshort.url/"):
+def insertUrlMapping(conn, long_url):
     try:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO url_mapping (long_url) VALUES (?)", (long_url,))
 
         row_id = cursor.lastrowid
 
-        short_url = base_url + toBase62(row_id)
+        short_url = toBase62(row_id)
 
         cursor.execute("UPDATE url_mapping SET short_url = ? WHERE id = ?", (short_url, row_id))
 
@@ -81,10 +82,13 @@ def insertUrlMapping(conn, long_url, base_url="myshort.url/"):
         raise sqlite3.Error(f"Error inserting URL mapping: {e}")
 
 # The logic for retrieving the long URL from database based on the short URL
-def getLongUrl(conn, short_url, base_url="myshort.url/"):
+def getLongUrl(conn, short_url):
     try:
         cursor = conn.cursor()
-        ind = fromBase62(short_url.replace(base_url, ""))
+        try:
+            ind = fromBase62(short_url)
+        except Exception as e:
+            raise ValueError ("Short URL format is not base62")
 
         cursor.execute("SELECT long_url FROM url_mapping WHERE id = ?", (ind,))
 
@@ -106,21 +110,29 @@ def lengthen(conn, short_url):
         return None
 
 # If the long URL already exists, returns the existing short URL. Otherwise, creates a new db entry and returns the new short URL.
-def shorten(conn, long_url, base_url="myshort.url/"):
+def shorten(conn, long_url):
     short_url = getShortUrl(conn, long_url)
     if short_url:
         return short_url
     else:
-        return insertUrlMapping(conn, long_url, base_url)
+        return insertUrlMapping(conn, long_url)
 
 # Checks if the URL is short or long, and raises an error if it's invalid
-def checkURL(url):
-    # TODO Check validity of URL, throw exception if invalid
-    valid_flag = True # Placeholder for actual validation logic
-    if not valid_flag:
-        raise ValueError("The URL provided does not have a valid format.")
-    if url.startswith("myshort.url/"):
-        return "short"
+def checkURL(url, base_url):    
+    if url.startswith(base_url) or url.startswith("http://" + base_url) or url.startswith("https://" + base_url):
+
+        url = url.replace("https://", "").replace("http://", "").replace(base_url, "")
+        # Not checking for base62 format here, it will be checked in getLongUrl() through fromBase62() later to avoid decoding twice
+        return url, "short"
+    
     else:
-        return "long"
+        
+        if not (url.startswith("http://") or url.startswith("https://")):
+            url = "https://" + url
+
+        parsed_url = urlparse(url)
+        
+        if "." not in parsed_url.netloc:
+            raise ValueError("The URL provided does not have a valid format.")
+        return url,"long"
     
