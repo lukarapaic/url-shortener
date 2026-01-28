@@ -6,6 +6,8 @@ ALPHABET_HASH = {char: i for i, char in enumerate(ALPHABET)}
 BASE_NUM = len(ALPHABET)
 
 # Creates the database and the table if they don't already exist
+# In theory we don't need to store short_url in the table, we can calculate it from the id every time
+# however, storing it makes retrieval faster, especially as the codes get longer.
 def createDb(db_path):
     try:
         conn = sqlite3.connect(db_path)
@@ -45,6 +47,7 @@ def toBase62(num):
 # Decodes a base62 string into a number
 def fromBase62(s):
     num = 0
+
     for char in s:
         num = num * BASE_NUM + ALPHABET_HASH[char]
     return num
@@ -121,7 +124,9 @@ def shorten(conn, long_url):
 def checkURL(url, base_url):    
     if url.startswith(base_url) or url.startswith("http://" + base_url) or url.startswith("https://" + base_url):
 
-        url = url.replace("https://", "").replace("http://", "").replace(base_url, "")
+        url = url.removeprefix("https://").removeprefix("http://").removeprefix(base_url)
+        if url == "":
+            raise ValueError("The short URL provided does not have a short code.")
         # Not checking for base62 format here, it will be checked in getLongUrl() through fromBase62() later to avoid decoding twice
         return url, "short"
     
@@ -131,7 +136,7 @@ def checkURL(url, base_url):
             url = "https://" + url
 
         parsed_url = urlparse(url)
-        
+
         if "." not in parsed_url.netloc:
             raise ValueError("The URL provided does not have a valid format.")
         return url,"long"
